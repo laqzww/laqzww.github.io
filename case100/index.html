@@ -93,6 +93,7 @@
 <div id="footer"></div>
 
 <script>
+Q3D.Config.localMode = true;
 Q3D.Config.northArrow.visible = true;
 Q3D.Config.northArrow.color = 0xfafafa;
 if (typeof proj4 === "undefined") document.getElementById("lib_proj4js").style.display = "none";
@@ -112,7 +113,7 @@ app.addEventListener("sceneLoaded", function () {
 });
 
 // load the scene
-app.loadSceneFile("./data/index/scene.json", function () {
+app.loadSceneFile("./data/index/scene.js", function () {
   app.start();
 
   Q3D.gui.init();   // initialize dat-gui panel
