@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://furesoe.mapcentia.com/apps/widgets/gc2map/js/gc2map.js"></script>
+<script src="https://furesoe.mapcentia.com/apps/widgets/gc2table/js/gc2table.js"></script>
+<script src="https://furesoe.mapcentia.com/apps/widgets/gc2map/js/searchModules/danish.js"></script>
+<script src='http://api.tiles.mapbox.com/mapbox.js/v1.5.0/mapbox.js'></script>
+<link href='http://api.tiles.mapbox.com/mapbox.js/v1.5.0/mapbox.css' rel='stylesheet'/>
+</head>
+<body>
+<!-- div til kort og liste -->
+<div style="background-color:white" >
+    <div style="position:relative" id="map" background-color: "white"></div>
+    <div>
+        <table id="table" data-show-toggle="true" data-show-export="true" data-show-columns="true"
+               data-filter-control="true"></table>
+    </div>
+</div>
+
+<script>
+    gc2map.init({
+        key: "map", // div id
+        db: 'furesoe',
+        zoom: [11.8354, 55.7042, 9],
+        width: '100%',
+        height: '400px',
+  
+        //layers: ['schema.table'], // lag som skal tÃ¦ndes
+        var map = L.mapbox.map('map', ‘[pk.eyJ1IjoibGFxend3IiwiYSI6ImNrZW9hem5tZTFib3cyenB3eHlveHZwaHMifQ.iq9ES6v4YM2CfqyTClBffw]').setView([37.073, 137.153], 5);
+        
+        baseLayers: [{id: "geodkBright", "name": "Landkort"}],
+        setBaseLayer: 'geodkBright',
+        callBack: function (m, w) {
+            // Aktiver sÃ¸gning med kommune nr.
+            gc2map.createSearch(m, "190");
+            
+            // Lav et SQL store pÃ¥ normal vis
+            var store = new geocloud.sqlStore({
+                db: "furesoe",
+                sql:    "SELECT gid,anvgen,plannr,plannavn,anvendelsegenerel,'Vedtaget' as planstatus,doklink,to_date(datostart::text,'YYYYMMDD') AS datostart,to_date(datoslut::text,'YYYYMMDD') AS datoslut,to_date(datoikraft::text,'YYYYMMDD') AS datoikraft,to_date(datoaflyst::text,'YYYYMMDD') AS datoaflyst,the_geom from _01_fysisk_plan_og_naturbeskyt.lokalplan_vedtaget UNION  SELECT gid,anvgen,plannr,plannavn,anvendelsegenerel,'Forslag' as planstatus,doklink,to_date(datostart::text,'YYYYMMDD') AS datostart,to_date(datoslut::text,'YYYYMMDD') AS datoslut,to_date(datoikraft::text,'YYYYMMDD') AS datoikraft,to_date(datoaflyst::text,'YYYYMMDD') AS datoaflyst,the_geom from _01_fysisk_plan_og_naturbeskyt.lokalplan_forslag UNION SELECT gid,anvgen,plannr,plannavn,anvendelsegenerel,'Aflyst' as planstatus,doklink,to_date(datostart::text,'YYYYMMDD') AS datostart,to_date(datoslut::text,'YYYYMMDD') AS datoslut,to_date(datoikraft::text,'YYYYMMDD') AS datoikraft,to_date(datoaflyst::text,'YYYYMMDD') AS datoaflyst,the_geom from _01_fysisk_plan_og_naturbeskyt.lokalplan_aflyst",
+                // StyleMap laves som en funktion
+                styleMap: function (feature) {
+                    return {
+                        fillColor: (function (d) {
+                            return d === 11 ? '#c66100' :
+                                d === 21 ? '#ff615a' :
+                                    d === 31 ? '#6bffff' :
+                                        d === 41 ? '#ff69ff' :
+                                            d === 51 ? '#39ff39' :
+                                                d === 61 ? '#ffefad' :
+                                                    d === 71 ? '#efef00' :
+                                                        d === 81 ? '#9c9e9c' :
+                                                            d === 91 ? '#9c9e9c' :
+                                                                d === 96 ? '#C0C0C0' :
+                                                                    '#FFEDA0'
+                        }(feature.properties.anvgen)),
+                        weight: 1,
+                        opacity: 1,
+                        color: "#000",
+                        fillOpacity: 0.5
+                    }
+                },
+                onLoad: function () {
+                    // Brug IKKE denne funktion sammen med autoUpdate
+                    m.zoomToExtentOfgeoJsonStore(store);
+                }
+            });
+            // TilfÃ¸j store til kort og load
+            m.addGeoJsonStore(store);
+            store.load();
+            // Indtil nu er det normal widget. Nu begynder tabel
+            // Definer en column model
+            var cm = [
+                {
+                    "header": "Plannr",
+                    "dataIndex": "plannr",
+                    "type": "varchar",
+                    filterControl: "input",
+                    sortable: true
+                },
+                {
+                    "header": "Plannavn",
+                    "dataIndex": "plannavn",
+                    "type": "varchar",
+                    "showInPopup": true,
+                    filterControl: "input",
+                    sortable: true
+                },
+                {
+                    "header": "Anvendelse",
+                    "dataIndex": "anvendelsegenerel",
+                    "showInPopup": false,
+                    filterControl: "select"
+                },
+                {
+                    "header": "Status",
+                    "dataIndex": "planstatus",
+                    "showInPopup": true,
+                    filterControl: "select",
+                },
+                {
+                    "header": "Link",
+                    "dataIndex": "doklink",
+                    "link": "<span style='white-space: nowrap'>Hent lokalplan</span>",
+                    "showInPopup": true
+                }
+            ];
+            // Start tabel widget
+            gc2table.init({
+                el: "#table", // Element som tabellen skal lave i
+                geocloud2: m, // geocloud object
+                store: store, // store object
+                cm: cm, // Column model
+                autoUpdate: false, // Skal kortet opdateres ved zoom?
+                height: null, // Skal vÃ¦re null, hvis filter funktioner bruges pga. bug i bootstrap-table
+                tableBodyHeight: 200, // Hack til at afhjÃ¦lpe ovenstÃ¥ende
+                setViewOnSelect: true, // Zoom nÃ¥r det vÃ¦lges i tabellen
+                openPopUp: true, // Vis pop up pÃ¥ valgte features
+                setSelectedStyle: true, // Skal valgte features have en Selected style?
+                locale: 'da-DK'
+            });
+        }
+    });
+</script>
+</body>
+</html>
